@@ -90,6 +90,17 @@ async function handleRequest( event, req, res ) {
   }
 
 
+  //301  - redireccion a la home
+  if (url.pathname == "/301") {
+    const host = request.headers.get("Host");
+    var resp = new Response (null, 
+               { headers: new Headers({ 'Location': "https://"+host , 'Cache-Control': 'no-cache'}), 
+                 status:301,
+                url:"https://"+host })
+    return resp;
+  }
+
+
   //backend  --> cambiar ttl
   if (url.pathname == "/backend") {
     const backendName = "origin_0"
@@ -145,7 +156,7 @@ async function handleRequest( event, req, res ) {
       const trace    = env("FASTLY_TRACE_ID")
       console.log("FASTLY_HOSTNAME=",host);
       console.log("ENV=", entorno)
-      return new Response("<h3>Variables de Entorno</h3><p>FASTLY_HOSTNAME: " + host + "</p><p>ENV:" + entorno + "</p>"+"<p>FASTLY_TRACE_ID:"+trace+"</p>", 
+      return new Response("<h3>Variables de Entorno</h3><p> FASTLY_HOSTNAME: " + host + "</p><p>ENV:" + entorno + "</p>"+"<p>FASTLY_TRACE_ID:"+trace+"</p>", 
       {
         status: 200,
         headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }),
@@ -157,9 +168,9 @@ async function handleRequest( event, req, res ) {
 
     //google
     if (url.pathname == "/google") {
-          var newReq = new Request("https://www.google.es", request);
+          var newReq = new Request("https://google.es", request);
           // Set the host header for backend access
-          newReq.headers.set("Host", "www.google.es");
+          newReq.headers.set("Host", "google.es");
       
           // Send the retry request to backend
           return fetch(newReq, {
