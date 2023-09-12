@@ -28,47 +28,26 @@ const welcomePage = includeBytes("./src/welcome-to-compute@edge.html");
 // synthetic responses.
 
 //----------------------------------------------------------------------------------
-async function app() {
-  // For any request, return the fastly homepage -- without defining a backend!
-  return fetch('https://www.fastly.com/');
-}
-//addEventListener("fetch", event => event.respondWith(app(event)));
-
-//----------------------------------------------------------------------------------
-function handler(event) {
-  let clientGeo = event.client.geo
-
-  event.request.headers.set("client-geo-continent", clientGeo.continent)
-  event.request.headers.set("client-geo-country", clientGeo.country_code)
-  event.request.headers.set("client-geo-latitude", clientGeo.latitude)
-  event.request.headers.set("client-geo-longitude", clientGeo.longitude)
-
-  return fetch(event.request, { backend: "origin_0" })
-}
-//addEventListener("fetch", (event) => event.respondWith(handler(event)))
-//----------------------------------------------------------------------------------
 
 
 
 
-//addEventListener("fetch", (event) => event.respondWith(handleRequest(event)));
-//async function handleRequest(event) {
-async function handleRequest( req, res ) {
+async function handleRequest( event, req, res ) {
   // Log service version
   console.log("FASTLY_SERVICE_VERSION:", env('FASTLY_SERVICE_VERSION') || 'local');
-  
+  var request = req;
   // Get the client request.
   //let req = event.request;
 
   // Filter requests that have unexpected methods.
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+  if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) {
     return new Response("This method is not allowed", {
       status: 405,
     });
   }
 
-  let url = new URL(req.url);
-  let request = req;
+  let url = new URL(request.url);
+ 
 
   // If request is to the `/` path...
   if (url.pathname == "/") {
@@ -111,7 +90,7 @@ async function handleRequest( req, res ) {
   }
 
 
-  //backend
+  //backend  --> cambiar ttl
   if (url.pathname == "/backend") {
     const backendName = "origin_0"
     
@@ -125,15 +104,20 @@ async function handleRequest( req, res ) {
 
 
 
-  //GEOLOCATION
+  //GEOLOCATION en Response y Headers
   if (url.pathname == "/geo") {
         try {
-          let ip = new URL(request.url).searchParams.get('ip') || request.client.address
+          let ip = new URL(request.url).searchParams.get('ip') || request.client.address || request.remoteAddress
           let geo = getGeolocationForIpAddress(ip);
+          geo.ip = ip
           console.log("objeto geo:", geo)
           return new Response(JSON.stringify(geo,null,3), {
             headers: {
               "Content-Type": "application/json",
+              "client-geo-continent": clientGeo.continent,
+              "client-geo-country"  : clientGeo.country_code,
+              "client-geo-latitude" : clientGeo.latitude,
+              "client-geo-longitude": clientGeo.longitude
             },
           });
         } catch (error) {
@@ -146,10 +130,10 @@ async function handleRequest( req, res ) {
 
     //version
     if (url.pathname == "/version") {
-      return new Response("Tu request: " + JSON.stringify(request,null,3) + "<br>Entorno: DEV=" + env("ENV") + "<br>Version:" + env('FASTLY_SERVICE_VERSION'),
+      return new Response('{"request": ' + JSON.stringify(request,null,3)  + ', "Version:" "' + env('FASTLY_SERVICE_VERSION') + '" }',
       {
         status: 200,
-        headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }),
+        headers: new Headers({"Content-Type": "application/json", }),
       })
     }
 
@@ -232,7 +216,7 @@ let backendResponse;
 // asynchronously to your backend and sets the global variable
 // for use in all your base request handlers.
 router.use(async (req,res)=> {
-  const resp = await handleRequest(req,res)
+  const resp = await handleRequest({},req,res)
   res.send(resp)
 } );
 
@@ -253,4 +237,5 @@ router.all("(.*)", async (req, res) => {
   res.send(backendResponse);
 });
 
-router.listen();
+router.listen();  // Usar expressly.router
+//addEventListener("fetch", (event) => event.respondWith(handleRequest(event,event,{} )));  //Usar evento fetch
