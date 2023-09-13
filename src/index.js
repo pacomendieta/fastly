@@ -35,7 +35,7 @@ const welcomePage = includeBytes("./src/welcome-to-compute@edge.html");
 
 async function handleRequest( event, req, res ) {
   // Log service version
-  console.log("FASTLY_SERVICE_VERSION:", env('FASTLY_SERVICE_VERSION') || 'local');
+  console.log("FASTLY_SERVICE_VERSION:", env('FASTLY_SERVICE_VERSION') || 'local', ' '+ req.url);
   var request = req;
   // Get the client request.
   //let req = event.request;
@@ -105,29 +105,20 @@ async function handleRequest( event, req, res ) {
   //backend  --> cambiar ttl
   if (url.pathname == "/backend") {
     const backendName = "rtve"
+    const newRequest = new Request("https://www.rtve.es")
+    newRequest.headers.set("Cache-Control", "no-cache")
+//console.log("\n\nReq Inicial:", request)
+//console.log("\n\nNueva Req  :", newRequest)
 
-    const preReq = new Request("https://www.rtve.es/")
-    let preflightResp = await fetch(
-      preReq,
-      { backend: backendName }
-    );
-    console.log("\n***preflightResp:", preflightResp)
-
-    //console.log("****/backend")
-    //console.log("\n*****request:", request)
-    var newReq = new Request("https://sharply-charming-dodo.edgecompute.app/");
-    newReq.headers.set("Host", "sharply-charming-dodo.edgecompute.app");
-    console.log("\n*****newRequest:", request)
-    let cacheOverride = new CacheOverride("override", { ttl: 60 });
-    var backendResponse = new Response(" Response ")
-    var resp = await fetch(newReq,  { 
+   // let cacheOverride = new CacheOverride("override", { ttl: 60 });
+    //var backendResponse = new Response(" Response ")
+    var resp = await fetch(newRequest,  { 
         backend: backendName,
-        cacheOverride
+     //   cacheOverride
     })
     console.log ("\n****resp:", resp)
-    var newResp = new Response ( " new body ", {status:200})
-    console.log ("\n****newResp:", newResp)
-    return newResp
+    
+    return resp
 
   }
 
