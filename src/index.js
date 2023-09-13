@@ -104,19 +104,30 @@ async function handleRequest( event, req, res ) {
 
   //backend  --> cambiar ttl
   if (url.pathname == "/backend") {
-    const backendName = "origin_0"
+    const backendName = "rtve"
+
+    const preReq = new Request("https://www.rtve.es/")
+    let preflightResp = await fetch(
+      preReq,
+      { backend: backendName }
+    );
+    console.log("\n***preflightResp:", preflightResp)
+
     //console.log("****/backend")
     //console.log("\n*****request:", request)
-    var newReq = new Request("https://sharply-charming-dodo.edgecompute.app/", request);
+    var newReq = new Request("https://sharply-charming-dodo.edgecompute.app/");
     newReq.headers.set("Host", "sharply-charming-dodo.edgecompute.app");
     console.log("\n*****newRequest:", request)
-//    let cacheOverride = new CacheOverride("override", { ttl: 60 });
+    let cacheOverride = new CacheOverride("override", { ttl: 60 });
     var backendResponse = new Response(" Response ")
-    backendResponse = await fetch(newReq,  { 
+    var resp = await fetch(newReq,  { 
         backend: backendName,
-//        cacheOverride
+        cacheOverride
     })
-    return backendResponse
+    console.log ("\n****resp:", resp)
+    var newResp = new Response ( " new body ", {status:200})
+    console.log ("\n****newResp:", newResp)
+    return newResp
 
   }
 

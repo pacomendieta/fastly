@@ -11,3 +11,14 @@ service_id = "0QNQL3yY8jj6leQt7JvsW0"
 [scripts]
   build = "npm run build"
   post_init = "npm install"
+
+[local_server]
+  [local_server.backends]
+    [local_server.backends.google]
+      url="https://google.com"
+      override_host="google.com"
+      cert_host="google.com"
+    [local_server.backends.origin_0]
+      url="https://sharply-charming-dodo.edgecompute.app/"
+      override_host="sharply-charming-dodo.edgecompute.app"
+      cert_host="sharply-charming-dodo.edgecompute.app"   
