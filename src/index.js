@@ -95,7 +95,7 @@ async function handleRequest( event, req, res ) {
   if (url.pathname == "/301") {
     const host = request.headers.get("Host");
     var resp = new Response (null, 
-               { headers: new Headers({ 'Location': "https://"+host , 'Cache-Control': 'no-cache'}), 
+               { headers: new Headers({ "Location" : "https://"+host , "Cache-Control": "no-cache"}), 
                  status:301,
                 url:"https://"+host })
     return resp;
@@ -105,12 +105,19 @@ async function handleRequest( event, req, res ) {
   //backend  --> cambiar ttl
   if (url.pathname == "/backend") {
     const backendName = "origin_0"
-    
-    let cacheOverride = new CacheOverride("override", { ttl: 60 });
-    return fetch(request,  { 
+    //console.log("****/backend")
+    //console.log("\n*****request:", request)
+    var newReq = new Request("https://sharply-charming-dodo.edgecompute.app/", request);
+    newReq.headers.set("Host", "sharply-charming-dodo.edgecompute.app");
+    console.log("\n*****newRequest:", request)
+//    let cacheOverride = new CacheOverride("override", { ttl: 60 });
+    var backendResponse = new Response(" Response ")
+    backendResponse = await fetch(newReq,  { 
         backend: backendName,
-        cacheOverride
+//        cacheOverride
     })
+    return backendResponse
+
   }
 
 
