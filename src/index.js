@@ -15,6 +15,7 @@ import { getGeolocationForIpAddress } from "fastly:geolocation"
 // In the global scope be sure to import the Logger interface
 import { Logger } from "fastly:logger";
 
+import * as ipaddr from "ipaddr.js"
 
 // Load a static file as a Uint8Array at compile time.
 // File path is relative to root of project, not to this file
@@ -118,8 +119,9 @@ async function handleRequest( event, req, res ) {
   //GEOLOCATION en Response y Headers
   if (url.pathname == "/geo") {
         try {
-          let ip = new URL(request.url).searchParams.get('ip') || request.client.address || request.remoteAddress
+          let ip = new URL(request.url).searchParams.get('ip') || request.event.client.address || event.remoteAddress
           let geo = getGeolocationForIpAddress(ip);
+          let clientGeo = request.event.client.geo
           geo.ip = ip
           console.log("objeto geo:", geo)
           return new Response(JSON.stringify(geo,null,3), {
@@ -138,6 +140,44 @@ async function handleRequest( event, req, res ) {
           });
         }
   }
+
+
+// Ver tipo de IP  
+if (url.pathname == "/ipaddr")  {
+  // ver request
+  //console.log("***request:", request)
+  //console.log("***event:", event)
+
+  // Parse the client IP address.
+  let ip = request.remoteAddress || event.client.address
+  let address = ipaddr.parse( ip )
+  console.log("IP:", ip)
+
+  // If if IP address is v6...
+  if (address.kind() === "ipv6") {
+    console.log("Received a request via IPv6")
+
+    // Calculate a SHA-1 hash of the client IP address.
+    const encoder = new TextEncoder()
+    const data = encoder.encode(address)
+    const hash = await crypto.subtle.digest("SHA-1", data)
+    const hashArray = Array.from(new Uint8Array(hash))
+    
+
+    // Construct an IPv4 address from the first 4 bytes of the hash.
+    address = ipaddr.fromByteArray([0xf0 | hashArray[0], hashArray[1], hashArray[2], hashArray[3]])
+
+    console.log("Constructed IPv4 address " + address.toString())
+  } else {
+    console.log("Received a request via IPv4")
+  }
+
+  // Add the IP address as a header.
+  req.headers.set("x-ipv4", address.toString())
+
+  // Forward the request to the origin.
+  return new Response("La IP es " + ip)
+}
 
     //version
     if (url.pathname == "/version") {
@@ -227,7 +267,7 @@ let backendResponse;
 // asynchronously to your backend and sets the global variable
 // for use in all your base request handlers.
 router.use(async (req,res)=> {
-  const resp = await handleRequest({},req,res)
+  const resp = await handleRequest(req.event,req,res)
   res.send(resp)
 } );
 
