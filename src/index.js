@@ -102,19 +102,18 @@ async function handleRequest( event, req, res ) {
   }
 
 
-  //backend  --> cambiar ttl
-  if (url.pathname == "/backend") {
+  //ttl  --> cambiar ttl
+  if (url.pathname == "/ttl") {
     const backendName = "rtve"
     const newRequest = new Request("https://www.rtve.es")
-    newRequest.headers.set("Cache-Control", "no-cache")
 //console.log("\n\nReq Inicial:", request)
 //console.log("\n\nNueva Req  :", newRequest)
 
-   // let cacheOverride = new CacheOverride("override", { ttl: 60 });
+    let cacheOverride = new CacheOverride("override", { ttl: 60 });
     //var backendResponse = new Response(" Response ")
     var resp = await fetch(newRequest,  { 
         backend: backendName,
-     //   cacheOverride
+        cacheOverride
     })
     console.log ("\n****resp:", resp)
     
@@ -217,21 +216,14 @@ if (url.pathname == "/ipaddr")  {
 
     //google
     if (url.pathname == "/google") {
-          var newReq = new Request("https://google.es", request);
-          // Set the host header for backend access
-          newReq.headers.set("Host", "google.es");
-      
-          // Send the retry request to backend
-          return fetch(newReq, {
-            backend: "google",
-          });
+      const newRequest = new Request("https://www.google.com")
 
-          return new Response(resp, {
-            status: 200,
-            headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }),
-          })
-      
+      var resp = await fetch(newRequest, {
+        backend: "google"
+      });
+      return resp
     }
+
 
   //log
   if (url.pathname == "/log") {
@@ -246,8 +238,7 @@ if (url.pathname == "/ipaddr")  {
 
   }
 
-
-
+  
   // req   
   // Cambiar solo la request
   if ( url.pathname == "/req") {
@@ -276,21 +267,63 @@ let backendResponse;
 // asynchronously to your backend and sets the global variable
 // for use in all your base request handlers.
 router.use(async (req,res)=> {
-  const resp = await handleRequest(req.event,req,res)
-  res.send(resp)
+  backendResponse = await handleRequest(req.event,req,res)
+  //res.send(backendResponse)
+ console.log("\n****req.urlObj:",req.urlObj)
+  //si argumento ?add se añade contenido:
+  // if ( req.query.add ) {
+  if ( req.urlObj && req.urlObj.searchParams.get('add') ) {
+    // Obtiene el cuerpo de la respuesta como texto
+    const responseBodyText = await backendResponse.text();
+
+    // Concatena el string "<h2>Contenido adicional</h2>" al cuerpo de la respuesta
+    const modifiedBody = responseBodyText + "<h2>Contenido adicional</h2>" + req.urlObj.searchParams.get('add');
+  
+    // Crea una nueva respuesta con el cuerpo modificado
+    const modifiedResponse = new Response(modifiedBody, {
+      status: backendResponse.status,
+      statusText: backendResponse.statusText,
+      headers: backendResponse.headers,
+    });
+    modifiedResponse.headers.append( "Content-Type", "text/html; charset=utf-8" )
+
+    backendResponse = modifiedResponse
+
+  }
+
+
 } );
 
 
 // If the URL begins with /json
 router.get("/json", async (req, res) => {
-  // Parse the JSON response from the backend.
-  const data = await backendResponse.json();
+  var writableBody = {}
+  var newResp = {}
+  console.log("\n****backendResponse:", backendResponse)
 
-  // Add a new field to the parsed data.
-  data["new_field"] = "data injected at the edge";
 
-  // Construct a new response using the new data but original status.
-  res.withStatus(backendResponse.status).json(data);
+    // Obtiene el cuerpo de la respuesta como texto
+    const responseBodyText = await backendResponse.text();
+
+    // Concatena el string "<h2>Contenido adicional</h2>" al cuerpo de la respuesta
+    const modifiedBody = responseBodyText + "<h2>Contenido adicional</h2>";
+  
+    // Crea una nueva respuesta con el cuerpo modificado
+    const modifiedResponse = new Response(modifiedBody, {
+      status: backendResponse.status,
+      statusText: backendResponse.statusText,
+      headers: backendResponse.headers,
+    });
+    modifiedResponse.headers.append( "Content-Type", "text/html; charset=utf-8" )
+
+    backendResponse = modifiedResponse
+  /*
+  backendResponse.body.pipe( writableBody)
+  writableBody.on ('finish', ()=>{
+    newResp = newResponse( writableBody + "<br> Pasa por /json.")
+    res.send(newResp)
+  })
+*/
 });
 
 router.all("(.*)", async (req, res) => {
