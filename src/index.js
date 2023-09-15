@@ -106,8 +106,7 @@ async function handleRequest( event, req, res ) {
   if (url.pathname == "/ttl") {
     const backendName = "rtve"
     const newRequest = new Request("https://www.rtve.es")
-//console.log("\n\nReq Inicial:", request)
-//console.log("\n\nNueva Req  :", newRequest)
+    console.log ("\n****newRequest:\n", newRequest, "\n*******")
 
     let cacheOverride = new CacheOverride("override", { ttl: 60 });
     //var backendResponse = new Response(" Response ")
@@ -115,7 +114,7 @@ async function handleRequest( event, req, res ) {
         backend: backendName,
         cacheOverride
     })
-    console.log ("\n****resp:", resp)
+    console.log ("\n****resp:\n", resp, "\n******")
     
     return resp
 
@@ -217,7 +216,7 @@ if (url.pathname == "/ipaddr")  {
     //google
     if (url.pathname == "/google") {
       const newRequest = new Request("https://www.google.com")
-
+     
       var resp = await fetch(newRequest, {
         backend: "google"
       });
