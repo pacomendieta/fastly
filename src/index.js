@@ -271,11 +271,17 @@ if (url.pathname == "/ipaddr")  {
   // post   
   // Cambiar metodo POST a GET para habilitar el cache
   if ( url.pathname == "/post") {
+    // cambiar request para apuntar a /  para evitar embucle
+    var newurl = new URL ( url.protocol + "//" + url.host )
+
+    var resp
     if (request.method == "POST") {
-        resp = fetch ( request, { method: "GET" })
+        console.log("POST REQUEST:", JSON.stringify(request,null,3) )
+        resp = fetch ( newurl , { method: "GET" })
        // resp = new Response("La peticion es POST")
     } else {
-        resp = new Response("La peticion no es POST")
+        console.log("GEST REQUEST:", JSON.stringify(request,null,3) )      
+        resp = fetch ( newurl )
     }
     return resp
   }
