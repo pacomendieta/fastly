@@ -41,7 +41,7 @@ async function handleRequest( event, req, res ) {
   //let req = event.request;
 
   // Filter requests that have unexpected methods.
-  if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) {
+  if ([ "PUT", "PATCH", "DELETE"].includes(request.method)) {
     return new Response("This method is not allowed", {
       status: 405,
     });
@@ -94,15 +94,27 @@ async function handleRequest( event, req, res ) {
   //301  - redireccion a /version
   if (url.pathname == "/301") {
     const {protocol, host, pathname } = url
-    console.log("Protocol y host:", protocol, host )
+    console.log("Protocol:", protocol," host:", host )
     //const host = request.headers.get("Host");
     var resp = new Response (null, 
-               { headers: new Headers({ "Location" : "http://"+host+"/version"  , "Cache-Control": "no-cache"}), 
+               { headers: new Headers({ "Location" : protocol+ "//" + host + "/version"  , "Cache-Control": "no-cache"}), 
                  status:301,
                 })
     return resp;
   }
+  //cambio de url
+  if (url.pathname == "/cambio") {
+    //url.pathname = "/version"
+    //const {protocol, host, pathname } = url
+    //console.log("Protocol:", protocol," host:", host )
+    var newurl = new URL ( "http://httpbin.org/get")
+    var newrequest = new Request(newurl,request)
+    console.log("Request:", JSON.stringify(request,null,3) )
+    console.log("new Request:", JSON.stringify(newrequest,null,3) )
+    var resp = await fetch ( newrequest, { backend: "httpbin" })
 
+    return resp;  
+  }
 
   //cookies
   if (url.pathname == "/cookies") {
@@ -256,7 +268,20 @@ if (url.pathname == "/ipaddr")  {
 
   }
 
-  
+  // post   
+  // Cambiar metodo POST a GET para habilitar el cache
+  if ( url.pathname == "/post") {
+    if (request.method == "POST") {
+        resp = fetch ( request, { method: "GET" })
+       // resp = new Response("La peticion es POST")
+    } else {
+        resp = new Response("La peticion no es POST")
+    }
+    return resp
+  }
+
+
+
   
   // req   
   // Cambiar solo la request
@@ -319,6 +344,7 @@ let backendResponse;
 // asynchronously to your backend and sets the global variable
 // for use in all your base request handlers.
 router.use(async (req,res)=> {
+
   backendResponse = await handleRequest(req.event,req,res)
  
 
