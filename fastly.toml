@@ -22,3 +22,6 @@ service_id = "0QNQL3yY8jj6leQt7JvsW0"
       url="https://sharply-charming-dodo.edgecompute.app/"
       override_host="sharply-charming-dodo.edgecompute.app"
       cert_host="sharply-charming-dodo.edgecompute.app"   
+    [local_server.backends.httpbin]
+      url="http://httpbin.org/"
+      override_host="httpbin.org"

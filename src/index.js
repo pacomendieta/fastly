@@ -91,36 +91,46 @@ async function handleRequest( event, req, res ) {
   }
 
 
-  //301  - redireccion a la home
+  //301  - redireccion a /version
   if (url.pathname == "/301") {
-    const host = request.headers.get("Host");
+    const {protocol, host, pathname } = url
+    console.log("Protocol y host:", protocol, host )
+    //const host = request.headers.get("Host");
     var resp = new Response (null, 
-               { headers: new Headers({ "Location" : "https://"+host , "Cache-Control": "no-cache"}), 
+               { headers: new Headers({ "Location" : "http://"+host+"/version"  , "Cache-Control": "no-cache"}), 
                  status:301,
-                url:"https://"+host })
+                url:"http://"+host+"/version" })
     return resp;
   }
 
 
-  //ttl  --> cambiar ttl
-  if (url.pathname == "/ttl") {
-    const backendName = "rtve"
-    const newRequest = new Request("https://www.rtve.es")
-    console.log ("\n****newRequest:\n", newRequest, "\n*******")
+  //cookies
+  if (url.pathname == "/cookies") {
 
-    let cacheOverride = new CacheOverride("override", { ttl: 60 });
-    //var backendResponse = new Response(" Response ")
-    var resp = await fetch(newRequest,  { 
-        backend: backendName,
-        cacheOverride
-    })
-    console.log ("\n****resp:\n", resp, "\n******")
-    
-    return resp
+      // ver cookies
+      const cookies = req.cookies
+      cookies.delete("efimera")
+      const cookieHeader = req.headers.get('cookie')
+      console.log(`Original Cookie header is "${cookieHeader}"`);
+      console.log(`Objeto req.cookies "${cookies}"`)
+      console.log("Cookies:", JSON.stringify(cookies,null,3) )
+      console.log("Cookies.headers:", JSON.stringify(cookies.headers,null,3) )
 
+      const resp = new Response("Cookies: " + JSON.stringify(cookieHeader,null,3), {
+        status: 200,
+        headers: new Headers({ "Content-Type":  "application/json" }),
+      });
+      //res.cookie ('myCookie', 'foo en cookies', { path: "/cookies", maxAge: 3600 });
+      //res.cookie ('myCookiePadre', 'foo en cookies', { path: "/", maxAge: 3600 });
+      //res.cookie ('myCookiePadre', 'mi cookie', { path: "/cookies", maxAge: 3600 });
+      //res.cookie ('segundaCookie', 'segunda foo', { path: "/cookies", maxAge: 3600 });
+      res.cookie ('efimera', 'corta vida', { path: "/", maxAge: 20 });
+      res.cookie('myCookie','mi cookie', { path: "/cookies"})
+      res.cookie('myCookiePadre','mi cookie raiz', { path: "/"})
+      res.headers.set('Cache-Control', 'no-store, private');
+      res.clearCookie('myCookie',  { path: "/"})
+    res.send( "Cookies: " + JSON.stringify(cookieHeader,null,3) ) ;
   }
-
-
 
 
   //GEOLOCATION en Response y Headers
@@ -156,9 +166,10 @@ if (url.pathname == "/ipaddr")  {
   //console.log("***event:", event)
 
   // Parse the client IP address.
-  let ip = request.remoteAddress || event.client.address
+  let ip =  event.client.address
   let address = ipaddr.parse( ip )
   console.log("IP:", ip)
+
 
   // If if IP address is v6...
   if (address.kind() === "ipv6") {
@@ -185,16 +196,6 @@ if (url.pathname == "/ipaddr")  {
   // Forward the request to the origin.
   return new Response("La IP es " + ip)
 }
-
-    //version
-    if (url.pathname == "/version") {
-      return new Response('{"request": ' + JSON.stringify(request,null,3)  + ', "Version:" "' + env('FASTLY_SERVICE_VERSION') + '" }',
-      {
-        status: 200,
-        headers: new Headers({"Content-Type": "application/json", }),
-      })
-    }
-
 
     // env
     if (url.pathname == "/env") {
@@ -223,6 +224,24 @@ if (url.pathname == "/ipaddr")  {
       return resp
     }
 
+    //Se manipula solamente la url destino (usando el backen httpbin)
+    //httpbin
+    if (url.pathname == "/httpbin") {
+      //const newRequest = new Request("http://httpbin.org/get")
+      const newRequest = new Request("http://httpbin.org/get",request)
+      
+      console.log("newRequest:", JSON.stringify(newRequest,null,3) )
+
+      var resp = await fetch(newRequest, {
+        backend: "httpbin"
+      });
+      return resp
+    }
+
+    
+
+
+
 
   //log
   if (url.pathname == "/log") {
@@ -238,6 +257,7 @@ if (url.pathname == "/ipaddr")  {
   }
 
   
+  
   // req   
   // Cambiar solo la request
   if ( url.pathname == "/req") {
@@ -248,6 +268,40 @@ if (url.pathname == "/ipaddr")  {
       return fetch( upstreamRequest, { backend: "origin_0"});
   }
   
+
+  
+
+  //ttl  --> cambiar ttl
+  if (url.pathname == "/ttl") {
+    const backendName = "rtve"
+    const newRequest = new Request("https://www.rtve.es")
+    console.log ("\n****newRequest:\n", newRequest, "\n*******")
+
+    let cacheOverride = new CacheOverride("override", { ttl: 60 });
+    //var backendResponse = new Response(" Response ")
+    var resp = await fetch(newRequest,  { 
+        backend: backendName,
+        cacheOverride
+    })
+    console.log ("\n****resp:\n", resp, "\n******")
+    
+    return resp
+
+  }
+
+
+  
+    //version
+    if (url.pathname == "/version") {
+      return new Response('{"request": ' + JSON.stringify(request,null,3)  
+      + ', "Version:" "' + env('FASTLY_SERVICE_VERSION') + '" }' ,
+      {
+        status: 200,
+        headers: new Headers({"Content-Type": "application/json", }),
+      })
+    }
+
+
   
   // Catch all other requests and return a 404.
   return new Response("The page you requested could not be found ", {
@@ -258,7 +312,6 @@ if (url.pathname == "/ipaddr")  {
 
 //----- VERSION EXPRESSLY ----------------------
 import { Router } from "@fastly/expressly";
-const PRODUCTS_BACKEND = "origin_0";
 const router = new Router();
 let backendResponse;
 
@@ -267,10 +320,10 @@ let backendResponse;
 // for use in all your base request handlers.
 router.use(async (req,res)=> {
   backendResponse = await handleRequest(req.event,req,res)
-  //res.send(backendResponse)
- console.log("\n****req.urlObj:",req.urlObj)
-  //si argumento ?add se añade contenido:
-  // if ( req.query.add ) {
+ 
+
+
+  // Si add en la query, añade contenido al body
   if ( req.urlObj && req.urlObj.searchParams.get('add') ) {
     // Obtiene el cuerpo de la respuesta como texto
     const responseBodyText = await backendResponse.text();
