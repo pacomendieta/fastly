@@ -99,7 +99,7 @@ async function handleRequest( event, req, res ) {
     var resp = new Response (null, 
                { headers: new Headers({ "Location" : "http://"+host+"/version"  , "Cache-Control": "no-cache"}), 
                  status:301,
-                url:"http://"+host+"/version" })
+                })
     return resp;
   }
 
