@@ -116,8 +116,41 @@ async function handleRequest( event, req, res ) {
     return resp;  
   }
 
+  //setcookies:  Crea las cookies indicadadas en la query
+  if (url.pathname == "/setcookies") {
+    //recorre el query string
+    console.log("Query String:", url.searchParams)
+    for (const [key, value] of url.searchParams) {
+      console.log(`${key}: ${value}`);
+      res.cookie(key, value, { path: "/", maxAge: 3600 });
+    }
+
+    res.send("Cookies creadas")
+
+    //retorna "Ok" en el body
+    return new Response("Ok") 
+  }
+
+  //setcookies:  Crea las cookies indicadadas en la query
+  if (url.pathname == "/suscripcion") {
+    // Recoge las cookies UID, UIDSignature y UIDSignatureTimestamp
+    const cookies = req.cookies
+    const uid = cookies.get("UID")
+    const uidSignature = cookies.get("UIDSignature")
+    const uidSignatureTimestamp = cookies.get("UIDSignatureTimestamp")
+
+
+    console.log(`Objeto req.cookies "${cookies}"`)
+    // retorna las cookies en el body
+    return new Response("Cookies: " + JSON.stringify({uid,uidSignature,uidSignatureTimestamp},null,3),
+    {headers: new Headers({ "Content-Type":  "application/json" })}
+     )
+  }
+
+
+
   //cookies
-  if (url.pathname == "/cookies") {
+  if (url.pathname == "/testcookies") {
 
       // ver cookies
       const cookies = req.cookies
