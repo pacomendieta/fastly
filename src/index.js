@@ -28,13 +28,15 @@ const welcomePage = includeBytes("./src/welcome-to-compute@edge.html");
 // the request to a backend, make completely new requests, and/or generate
 // synthetic responses.
 
+
+//import { FastlyCompute } from "@fastly/js-compute";
 /*
-import { FastlyCompute } from "@fastly/js-compute";
-const fastly = new FastlyCompute({
+const fastly = new Fastly ({
   serviceKey: "0QNQL3yY8jj6leQt7JvsW0",
   serviceToken: "gUzlskaH9YK7TTW_-5waJVt_qh9G31tc",
 });
 */
+
 
 //----------------------------------------------------------------------------------
 
@@ -139,6 +141,38 @@ async function handleRequest( event, req, res ) {
     return new Response("Ok") 
   }
 
+  // JSON PUBLICIDAD ******************************************************************************************
+  if (url.pathname.match(/^\/api\/videos\/\d+\/publicidad\.json$/) ) {
+     const pathjson = "https://www.rtve.es/" + url.pathname
+     console.log("PUBLICIDAD: ", "https://www.rtve.es" + url.pathname)
+     const timestamp = Date.now()
+     let decodedBody
+     let buffer
+
+    let resp = await fetch(request, { backend: "publicidad" })
+    if ( resp.headers.get("Content-Encoding") == "gzip" ) {
+     // decodedBody = await fastly.util.gunzip(  await resp.text() ) 
+
+    } else {
+       decodedBody = await resp.text()  
+    }
+
+
+
+    console.log("BODY:", decodedBody)
+
+    //resp.headers.set("Content-type", "application/json; charset=utf-8");
+    return resp
+
+     return new Response( JSON.stringify( { "publicidad": pathjson } ) ,
+                          { status: 200,  
+                            headers: new Headers({ "Content-Type": "application/json; charset=utf-8" }),
+                          })
+
+  }
+
+
+
   //SUSCRIPCION ************************************************************************************************
   if (url.pathname == "/suscripcion") {
     // Recoge las cookies UID, UIDSignature y UIDSignatureTimestamp
@@ -151,13 +185,18 @@ async function handleRequest( event, req, res ) {
     
     // Llama al servicio de usuarios para validar la suscripcion, pasando las cookies en el querystring
     const usuariosUrl = `https://secure2.rtve.es/usuarios/pasarela/estado?UID=${uid}&UIDSignature=${uidSignature}&UIDSignatureTimestamp=${uidSignatureTimestamp}`
-    const resp = await fetch(usuariosUrl)
+    //const resp = await fetch(usuariosUrl)   // no estan habilitados los "backends dinamicos"
+    const newRequest = new Request(usuariosUrl, request)
+    const resp = await fetch( newRequest, { backend: "usuarios"})
+
+
+
     console.log("\nRESPUESTA del servidor de Usuarios:", resp)
     var respBody = await resp.text()
     console.log("\nRESPUESTA - BODY:", respBody )
 
     // Deja pasar la peticion al servidor de origen o deniega el acceso
-    if (respBody == "1") {
+    if (respBody == "0") {
       console.log("\nRESPUESTA - BODY: 1 - Deja pasar la peticion al servidor de origen")
       return fetch(request, { backend: "rtve" })
     } 
@@ -310,7 +349,36 @@ if (url.pathname == "/ipaddr")  {
     }
 
     
+// If the URL begins with /json
+if (url.pathname == "/json") {
 
+  var backendResponse = await fetch(request, { backend: "httpbin" })
+  console.log("\n****backendResponse:", backendResponse)
+
+
+    // Obtiene el cuerpo de la respuesta como texto
+    const responseBodyText = await backendResponse.text();
+
+    // Concatena el string "<h2>Contenido adicional</h2>" al cuerpo de la respuesta
+    const modifiedBody = responseBodyText + "<h2>Contenido adicional</h2>";
+  
+    // Crea una nueva respuesta con el cuerpo modificado
+    const modifiedResponse = new Response(modifiedBody, {
+      status: backendResponse.status,
+      statusText: backendResponse.statusText,
+      headers: backendResponse.headers,
+    });
+    modifiedResponse.headers.append( "Content-Type", "text/html; charset=utf-8" )
+
+    backendResponse = modifiedResponse
+  /*
+  backendResponse.body.pipe( writableBody)
+  writableBody.on ('finish', ()=>{
+    newResp = newResponse( writableBody + "<br> Pasa por /json.")
+    res.send(newResp)
+  })
+*/
+}
 
 
 
@@ -391,29 +459,8 @@ if (url.pathname == "/ipaddr")  {
       })
     }
 
-
-  
-  // Catch all other requests and return a 404.
-  return new Response("The page you requested could not be found ", {
-    status: 404,
-  });
-}//handleRequest()
-
-
-//******ENRUTADO DE TODAS LAS PETICIONES********************************************
-import { Router } from "@fastly/expressly";
-const router = new Router();
-let backendResponse;
-
-// Configure middleware that automatically proxies request
-// asynchronously to your backend and sets the global variable
-// for use in all your base request handlers.
-router.use(async (req,res)=> {
-
-  backendResponse = await handleRequest(req.event,req,res)
- 
-
-
+    
+  // query string: add=xxxx
   // Si argumento add en la query, añade contenido al body en la respuesta
   if ( req.urlObj && req.urlObj.searchParams.get('add') ) {
     // Obtiene el cuerpo de la respuesta como texto
@@ -435,39 +482,33 @@ router.use(async (req,res)=> {
   }
 
 
+  
+  // Catch all other requests and return a 404.
+  return new Response("The page you requested could not be found ", {
+    status: 404,
+  });
+
+
+}//handleRequest()
+
+
+//******ENRUTADO DE TODAS LAS PETICIONES********************************************
+import { Router } from "@fastly/expressly";
+const router = new Router();
+let backendResponse;
+
+// Configure middleware that automatically proxies request
+// asynchronously to your backend and sets the global variable
+// for use in all your base request handlers.
+
+//addEventListener("fetch", ev => ev.respondWith(handleRequest(ev, ev.request, {})));
+
+router.use(async (req,res)=> {
+  backendResponse = await handleRequest(req.event,req,res)
 } );
 
 
-// If the URL begins with /json
-router.get("/json", async (req, res) => {
-  var writableBody = {}
-  var newResp = {}
-  console.log("\n****backendResponse:", backendResponse)
 
-
-    // Obtiene el cuerpo de la respuesta como texto
-    const responseBodyText = await backendResponse.text();
-
-    // Concatena el string "<h2>Contenido adicional</h2>" al cuerpo de la respuesta
-    const modifiedBody = responseBodyText + "<h2>Contenido adicional</h2>";
-  
-    // Crea una nueva respuesta con el cuerpo modificado
-    const modifiedResponse = new Response(modifiedBody, {
-      status: backendResponse.status,
-      statusText: backendResponse.statusText,
-      headers: backendResponse.headers,
-    });
-    modifiedResponse.headers.append( "Content-Type", "text/html; charset=utf-8" )
-
-    backendResponse = modifiedResponse
-  /*
-  backendResponse.body.pipe( writableBody)
-  writableBody.on ('finish', ()=>{
-    newResp = newResponse( writableBody + "<br> Pasa por /json.")
-    res.send(newResp)
-  })
-*/
-});
 
 router.all("(.*)", async (req, res) => {
   res.send(backendResponse);

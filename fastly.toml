@@ -33,6 +33,10 @@ service_id = "0QNQL3yY8jj6leQt7JvsW0"
       url="https://www.rtve.es"
       override_host="www.rtve.es"
       cert_host="www.rtve.es"
+    [local_server.backends.publicidad]
+      url="https://www.rtve.es"
+      override_host="www.rtve.es"
+      cert_host="www.rtve.es"
 
 [backends]
     [bakends.usuarios]
