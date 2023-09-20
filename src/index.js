@@ -28,6 +28,14 @@ const welcomePage = includeBytes("./src/welcome-to-compute@edge.html");
 // the request to a backend, make completely new requests, and/or generate
 // synthetic responses.
 
+/*
+import { FastlyCompute } from "@fastly/js-compute";
+const fastly = new FastlyCompute({
+  serviceKey: "0QNQL3yY8jj6leQt7JvsW0",
+  serviceToken: "gUzlskaH9YK7TTW_-5waJVt_qh9G31tc",
+});
+*/
+
 //----------------------------------------------------------------------------------
 
 
@@ -131,7 +139,7 @@ async function handleRequest( event, req, res ) {
     return new Response("Ok") 
   }
 
-  //setcookies:  Crea las cookies indicadadas en la query
+  //SUSCRIPCION ************************************************************************************************
   if (url.pathname == "/suscripcion") {
     // Recoge las cookies UID, UIDSignature y UIDSignatureTimestamp
     const cookies = req.cookies
@@ -139,14 +147,31 @@ async function handleRequest( event, req, res ) {
     const uidSignature = cookies.get("UIDSignature")
     const uidSignatureTimestamp = cookies.get("UIDSignatureTimestamp")
 
+    console.log("\nCOOKIES:", uid, "|", uidSignature, "|", uidSignatureTimestamp)
+    
+    // Llama al servicio de usuarios para validar la suscripcion, pasando las cookies en el querystring
+    const usuariosUrl = `https://secure2.rtve.es/usuarios/pasarela/estado?UID=${uid}&UIDSignature=${uidSignature}&UIDSignatureTimestamp=${uidSignatureTimestamp}`
+    const resp = await fetch(usuariosUrl)
+    console.log("\nRESPUESTA del servidor de Usuarios:", resp)
+    var respBody = await resp.text()
+    console.log("\nRESPUESTA - BODY:", respBody )
 
-    console.log(`Objeto req.cookies "${cookies}"`)
-    // retorna las cookies en el body
-    return new Response("Cookies: " + JSON.stringify({uid,uidSignature,uidSignatureTimestamp},null,3),
-    {headers: new Headers({ "Content-Type":  "application/json" })}
-     )
+    // Deja pasar la peticion al servidor de origen o deniega el acceso
+    if (respBody == "1") {
+      console.log("\nRESPUESTA - BODY: 1 - Deja pasar la peticion al servidor de origen")
+      return fetch(request, { backend: "rtve" })
+    } 
+    else {
+      console.log("\nRESPUESTA - BODY: 0 - Deniega el acceso")
+      return new Response("<h1> No estas suscrito. Suscribete ahora</h1>", 
+                         { status: 403, 
+                           headers:{ "Content-Type": "text/html; charset=utf-8" }
+                         } )
+    }
+
   }
 
+//************************************************************************************************ */
 
 
   //cookies
@@ -244,6 +269,7 @@ if (url.pathname == "/ipaddr")  {
 
     // env
     if (url.pathname == "/env") {
+
       const host = env("FASTLY_HOSTNAME");
       const entorno  = env("ENV")
       const trace    = env("FASTLY_TRACE_ID")
@@ -374,7 +400,7 @@ if (url.pathname == "/ipaddr")  {
 }//handleRequest()
 
 
-//----- VERSION EXPRESSLY ----------------------
+//******ENRUTADO DE TODAS LAS PETICIONES********************************************
 import { Router } from "@fastly/expressly";
 const router = new Router();
 let backendResponse;
@@ -388,7 +414,7 @@ router.use(async (req,res)=> {
  
 
 
-  // Si add en la query, añade contenido al body
+  // Si argumento add en la query, añade contenido al body en la respuesta
   if ( req.urlObj && req.urlObj.searchParams.get('add') ) {
     // Obtiene el cuerpo de la respuesta como texto
     const responseBodyText = await backendResponse.text();
