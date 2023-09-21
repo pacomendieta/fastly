@@ -162,7 +162,8 @@ async function handleRequest( event, req, res ) {
     var posPreroll, posPostroll, tipoActual
     for ( i=0, posPreroll=0, posPostroll=0; i<fin; i++ ) {  
       if ( decodedBody[i] !== '"' ) continue
-      const palabra = decodedBody.slice(i).match(/"([^",:]+)"/)
+      var palabra = decodedBody.slice(i).match(/"([^",:]+)"/)
+      i+= palabra[1].length +1
 
       //if (palabra) console.log(" *palabra:",i," ",palabra[1])
       if ( palabra[1] =="Preroll" ) {
@@ -173,20 +174,25 @@ async function handleRequest( event, req, res ) {
       if ( palabra[1] == "Postroll" ) {
         tipoActual = "Postroll"
         posPostroll++
-      }
-      //if ( tipoActual !="Preroll" && tipoActual !="Postroll" ) continue
+      } else 
+        if ( palabra[1] == "Midroll" ) {
+          tipoActual = "Midroll"
+     }
+     if ( tipoActual =="Midroll" ) continue
     
-
+/*
       if ( palabra[1].includes("&tgt=id=")) {  // es una url
         if (tipoActual == "Preroll") {
-          //palabra = palabra.replace(/&tgt=/g, '&tgt=pos=X');
-
+          const valorAnt = palabra[1]
+          const valorAct = valorAnt.replace(/&tgt=/g, `&tgt=pos=${posPreroll}=`)
+          decodedBody.replace(valorAnt,valorAct)
+          i += valorAct.length - valorAnt.length
         }
       }
-
+*/
 
       console.log("\n *palabra:",i," ",palabra[1])
-      i+= palabra[1].length +1
+      
     } //for i
 
 
