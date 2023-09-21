@@ -144,6 +144,9 @@ async function handleRequest( event, req, res ) {
 
     // pide el json: recoge el body de la respuesta y lo decodifica si es gzip
     let resp = await fetch(request, { backend: "publicidad" })
+    // si el servidor responde con error, devolver respuesta sin modificar
+    if (  !resp.ok ) return resp
+
     if ( resp.headers.get("Content-Encoding") == "gzip" ) {
       buffer = await resp.arrayBuffer()
       decodedBody = pako.inflate(buffer, { to: 'string' })
@@ -155,15 +158,14 @@ async function handleRequest( event, req, res ) {
      decodedBody = decodedBody.replace(/tmstp=/g, "tmstp=" + timestamp + "&lang=es")     
 
     // Buscar y modificar los campos "url"
-    //decodedBody.replace(/"url"\s*:\s*\"([^\"]+)\"/g, '"url": "$1\&lang=es"');
-
     //recorre decodedBody
     var fin = decodedBody.length
     var posPreroll, posPostroll, tipoActual
     for ( i=0, posPreroll=0, posPostroll=0; i<fin; i++ ) {  
       if ( decodedBody[i] !== '"' ) continue
       var palabra = decodedBody.slice(i).match(/"([^",:]+)"/)
-      i+= palabra[1].length +1
+      if ( palabra == null ) continue
+      
 
       //if (palabra) console.log(" *palabra:",i," ",palabra[1])
       if ( palabra[1] =="Preroll" ) {
@@ -178,21 +180,24 @@ async function handleRequest( event, req, res ) {
         if ( palabra[1] == "Midroll" ) {
           tipoActual = "Midroll"
      }
-     if ( tipoActual =="Midroll" ) continue
+     if ( tipoActual =="Midroll" ) { i+= palabra[1].length +1; continue }
     
-/*
-      if ( palabra[1].includes("&tgt=id=")) {  // es una url
-        if (tipoActual == "Preroll") {
-          const valorAnt = palabra[1]
-          const valorAct = valorAnt.replace(/&tgt=/g, `&tgt=pos=${posPreroll}=`)
-          decodedBody.replace(valorAnt,valorAct)
-          i += valorAct.length - valorAnt.length
-        }
-      }
-*/
 
-      console.log("\n *palabra:",i," ",palabra[1])
-      
+      if ( palabra[1].includes("&tgt=id=")) {  // es una url, hay que añadir pos= en el tgt
+        const valorAnt = palabra[1]
+        var valorAct
+        if (tipoActual == "Preroll") {
+           valorAct = valorAnt.replace(/&tgt=/g, `&tgt=pos=${posPreroll};`)
+        } 
+        if (tipoActual == "Postroll") {
+           valorAct = valorAnt.replace(/&tgt=/g, `&tgt=pos=${posPostroll};`)
+        } 
+        decodedBody = decodedBody.replace(valorAnt,valorAct)
+        i += valorAct.length - valorAnt.length
+        fin = decodedBody.length     
+      }
+
+      i+= palabra[1].length +1;    
     } //for i
 
 
@@ -202,11 +207,6 @@ async function handleRequest( event, req, res ) {
     //resp.headers.set("Content-type", "application/json; charset=utf-8");
     return new Response(     decodedBody ,
     { headers: { "Content-Type": "application/json" } }  )
-
-     return new Response( JSON.stringify( { "publicidad": pathjson } ) ,
-                          { status: 200,  
-                            headers: new Headers({ "Content-Type": "application/json; charset=utf-8" }),
-                          })
 
   }
 
