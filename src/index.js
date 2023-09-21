@@ -142,17 +142,52 @@ async function handleRequest( event, req, res ) {
      let decodedBody
      let buffer
 
+    // pide el json: recoge el body de la respuesta y lo decodifica si es gzip
     let resp = await fetch(request, { backend: "publicidad" })
     if ( resp.headers.get("Content-Encoding") == "gzip" ) {
-     // decodedBody = await fastly.util.gunzip(  await resp.text() ) 
       buffer = await resp.arrayBuffer()
       decodedBody = pako.inflate(buffer, { to: 'string' })
-      console.log("/n**** json viene comprimido con gzip*****")
-
     } else {
-      console.log("/n**** json NO viene comprimido con gzip*****")
       decodedBody = await resp.text()  
     }
+     // timestamp y lang:
+     //en el body de la respuesta, pone el valor de "timestamp"  y añade lang=es
+     decodedBody = decodedBody.replace(/tmstp=/g, "tmstp=" + timestamp + "&lang=es")     
+
+    // Buscar y modificar los campos "url"
+    //decodedBody.replace(/"url"\s*:\s*\"([^\"]+)\"/g, '"url": "$1\&lang=es"');
+
+    //recorre decodedBody
+    var fin = decodedBody.length
+    var posPreroll, posPostroll, tipoActual
+    for ( i=0, posPreroll=0, posPostroll=0; i<fin; i++ ) {  
+      if ( decodedBody[i] !== '"' ) continue
+      const palabra = decodedBody.slice(i).match(/"([^",:]+)"/)
+
+      //if (palabra) console.log(" *palabra:",i," ",palabra[1])
+      if ( palabra[1] =="Preroll" ) {
+         tipoActual = "Preroll"
+         posPreroll++
+      }
+      else
+      if ( palabra[1] == "Postroll" ) {
+        tipoActual = "Postroll"
+        posPostroll++
+      }
+      //if ( tipoActual !="Preroll" && tipoActual !="Postroll" ) continue
+    
+
+      if ( palabra[1].includes("&tgt=id=")) {  // es una url
+        if (tipoActual == "Preroll") {
+          //palabra = palabra.replace(/&tgt=/g, '&tgt=pos=X');
+
+        }
+      }
+
+
+      console.log("\n *palabra:",i," ",palabra[1])
+      i+= palabra[1].length +1
+    } //for i
 
 
 
