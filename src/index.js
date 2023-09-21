@@ -29,14 +29,7 @@ const welcomePage = includeBytes("./src/welcome-to-compute@edge.html");
 // synthetic responses.
 
 
-//import { FastlyCompute } from "@fastly/js-compute";
-/*
-const fastly = new Fastly ({
-  serviceKey: "0QNQL3yY8jj6leQt7JvsW0",
-  serviceToken: "gUzlskaH9YK7TTW_-5waJVt_qh9G31tc",
-});
-*/
-
+const pako = require('pako')
 
 //----------------------------------------------------------------------------------
 
@@ -152,9 +145,13 @@ async function handleRequest( event, req, res ) {
     let resp = await fetch(request, { backend: "publicidad" })
     if ( resp.headers.get("Content-Encoding") == "gzip" ) {
      // decodedBody = await fastly.util.gunzip(  await resp.text() ) 
+      buffer = await resp.arrayBuffer()
+      decodedBody = pako.inflate(buffer, { to: 'string' })
+      console.log("/n**** json viene comprimido con gzip*****")
 
     } else {
-       decodedBody = await resp.text()  
+      console.log("/n**** json NO viene comprimido con gzip*****")
+      decodedBody = await resp.text()  
     }
 
 
@@ -162,7 +159,8 @@ async function handleRequest( event, req, res ) {
     console.log("BODY:", decodedBody)
 
     //resp.headers.set("Content-type", "application/json; charset=utf-8");
-    return resp
+    return new Response(     decodedBody ,
+    { headers: { "Content-Type": "application/json" } }  )
 
      return new Response( JSON.stringify( { "publicidad": pathjson } ) ,
                           { status: 200,  
